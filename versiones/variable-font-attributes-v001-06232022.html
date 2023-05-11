@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Variables tipográficas</title>
+        <script src="jspsych/dist/jspsych.js"></script>
+        <script src="jspsych/dist/plugin-html-keyboard-response.js"></script>
+        <script src="jspsych/dist/plugin-instructions.js"></script>
+        <script src="jspsych/dist/plugin-html-button-response.js"></script>
+        <link rel="stylesheet" href="jspsych/dist/jspsych.css">
+        <link rel="stylesheet" href="css/customStyles.css">
+    </head>
+    <body></body>
+    <script>
+        const jsPsych = initJsPsych();
+        const timeline = [];
+
+        // VARIABLES
+        var direccionSerie;
+        var estimuloModelo = 110;
+        var estimuloComparacion;
+        var pesoFuente;
+        var nuevoEnsayo;
+        var errores = [];
+        var umbralSerie;
+        let signoRespuesta;
+        var contadorEnsayos = 0;
+        var contadorSeries = 0;
+        var erroresConsecutivos = 0;
+        var ubicacionModelo;
+        var ubicacionComparacion;
+        var ubicacionesEstimulos = {};
+        var respuestaIngresada;
+        var cadenaRespuestas = [];
+        var cadenaPesos = [];
+        var respuestasPorSerie = {};
+        var umbralesPorSerie = {};
+
+        const iniciosDescendentes = [160, 140, 180, 170, 150];
+        const iniciosAscendentes = [80, 70, 60, 50, 40];
+        //const iniciosDescendentes = [160];
+        //const iniciosAscendentes = [80];
+
+        
+        // FUNCIONES
+        const claseEstimulo = function () {
+            var tiposEstimulo = ["modelo", "comparacion"]
+            
+            const stimuliContainers = document.querySelectorAll(".stimulus");
+
+            for (let i = 0; i < stimuliContainers.length; i++) {
+                stimuliContainers[i].classList.add(tiposEstimulo.splice( Math.floor(Math.random()*tiposEstimulo.length), 1 )[0]);
+            }
+        }
+
+        const pesoEstimulos = function () {
+            //var pesoFuente;
+
+            //seleccionar contenedor con clase .modelo y modificar peso de fuente
+            const modelo = document.querySelector(".modelo");
+            modelo.style.cssText = "font-variation-settings:'wght'" + estimuloModelo;
+
+            //seleccionar contenedor con clase .comparacion y modificar peso de fuente, de acuerdo con la dirección de la serie
+            const comparacion = document.querySelector(".comparacion");
+
+            switch(contadorEnsayos){
+                case 1:
+                    //console.log('Este es el primer ensayo');
+                    if (direccionSerie === "ascendente") {
+                        pesoFuente = iniciosAscendentes.splice( Math.floor(Math.random()*iniciosAscendentes.length), 1 )[0];
+                        comparacion.style.cssText = "font-variation-settings:'wght'" + pesoFuente;
+                        console.log(pesoFuente);
+                        //console.log(iniciosAscendentes);
+                    } else if (direccionSerie === "descendente") {
+                        pesoFuente = iniciosDescendentes.splice( Math.floor(Math.random()*iniciosDescendentes.length), 1 )[0];
+                        comparacion.style.cssText = "font-variation-settings:'wght'" + pesoFuente;
+                    }
+                    break;
+                default:
+                    //console.log('Ensayo subsecuente');
+                    if (direccionSerie === "ascendente") {
+                        console.log(pesoFuente);
+                        pesoFuente+=4;
+                        comparacion.style.cssText = "font-variation-settings:'wght'" + pesoFuente;
+                        console.log(pesoFuente);
+                    } else if (direccionSerie === "descendente") {
+                        console.log(pesoFuente);
+                        pesoFuente-=4;
+                        comparacion.style.cssText = "font-variation-settings:'wght'" + pesoFuente;
+                        console.log(pesoFuente);
+                    }
+            }
+
+            
+
+            
+        }
+
+        const obtenerUbicaciones = function() {
+            const container = document.querySelectorAll(".stimulus");
+
+            for(let i = 0; i < container.length; i++) {
+                var tipoEstimulo = container[i].className.split(' ').pop();
+                var ubicacionEstimulo = container[i].className.split(' ')[1];
+                ubicacionesEstimulos[tipoEstimulo] = ubicacionEstimulo;
+            }
+            //console.log(ubicacionesEstimulos);
+        }
+
+        const evaluarRespuesta = function() {
+            // Evaluar la respuesta para decidir si se corre un nuevo ensayo
+
+            switch(jsPsych.data.getLastTrialData().values()[0].response) {
+                case 0:
+                    respuestaIngresada = 'izquierda';
+                    break;
+                case 1:
+                    respuestaIngresada = 'igual';
+                    break;
+                case 2:
+                    respuestaIngresada = 'derecha';
+            }
+
+            console.log(respuestaIngresada);
+
+        }
+
+        // Traduce respuestaIngresada a signo ('+','-','='); lo añade a cadenaRespuestas
+        var respuestas_a_Signos = function() {
+
+            //let signoRespuesta;
+
+            switch(respuestaIngresada){
+                case(ubicacionesEstimulos['modelo']):
+                    signoRespuesta = '-';
+                    cadenaRespuestas.push(signoRespuesta);
+                    break;
+                
+                case('igual'):
+                    signoRespuesta = '=';
+                    cadenaRespuestas.push(signoRespuesta);
+                    break;
+
+                case(ubicacionesEstimulos['comparacion']):
+                    signoRespuesta = '+';
+                    cadenaRespuestas.push(signoRespuesta);
+            }
+
+        }
+
+        var invertirDireccionSerie = function() {
+            switch(direccionSerie){
+                case('ascendente'):
+                    direccionSerie = 'descendente';
+                    break;
+                case('descendente'):
+                    direccionSerie = 'ascendente';
+            }
+        }
+        
+        var listaErrores = function() {
+            errores = jsPsych.data.get().filter( {id: 'respuesta', serieNumero: contadorSeries} ).last(2).select('responseSign').values;
+        }
+
+        // PANTALLAS    
+        
+        var pantallaInicial = {
+            //Esta es la presentación y aquí se define la dirección de la serie inicial
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: '<span style="font-size:40px;">EXPERIMENTO PERCEPCIÓN VARIABLES TIPOGRÁFICAS</span>',
+            choices: ['a', 'd'],
+            on_finish: function(data){
+                // 1 Seleccionar direccion de la primera serie
+
+                var direccionSeleccionada = event.key;
+
+                if (direccionSeleccionada === "a") {
+                    direccionSerie = "ascendente";
+                } else if (direccionSeleccionada === "d") {
+                    direccionSerie = "descendente";
+                }
+
+                console.log(direccionSeleccionada);
+                console.log(direccionSerie);
+
+                // 3 Se asigna ID del participante (Ejemplo: 061320221350)
+                // Tomar fecha y hora y dejar solo cadena de números (o tal vez dejarlo así)
+                //asignaIdParticipante();
+            }
+        }
+        timeline.push(pantallaInicial);
+
+        var inicioSerie = {
+            type: jsPsychInstructions,
+            pages: ['<p style="font-size:40px">Nueva serie</p>'],
+            data: {
+                id: 'SERIE'
+            },
+            on_finish: function(data) {
+                contadorSeries++;
+                console.log('Esta es la serie número ' + contadorSeries);
+                data.serieNumero = contadorSeries;
+                data.direccionSerie = direccionSerie;
+            }
+        }
+
+        var instrucciones = {
+            //Acá se haría la asignación de la dirección de la primera serie, porque en las instrucciones el participante toma control de los aparatos de input, y solo comenzaría su prueba dando clic en algún botón o presienando Enter. Cambiaría el TYPE de instrucciones
+        }
+
+        var cruzFijacion = {
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: '<span style="font-size:40px;">+</span>',
+            choices: 'NO_KEYS',
+            trial_duration: 2000,
+            data: {
+                id: 'fijacion' 
+            },
+        }
+
+        var estimulos = {
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: '<div class="stimulus izquierda inline">M</div><div class="spacerAngle inline" style="width: 2em;"></div><div class="stimulus derecha inline">M</div>',
+            options: 'NO_KEYS',
+            trial_duration: 1000,
+            data: {
+                id: 'estimulos' 
+            },
+            on_load: function(){
+                contadorEnsayos++;
+                console.log(contadorEnsayos);
+                claseEstimulo();
+                pesoEstimulos();
+                obtenerUbicaciones();
+            }
+        }
+
+        var pantallaRespuestas = {
+            type: jsPsychHtmlButtonResponse,
+            stimulus: '<p>¿Cuál tenía mayor peso?</p>',
+            choices: ['<','=','>'],
+            data: {
+                id: 'respuesta',
+            },
+            on_finish: function(data){
+                evaluarRespuesta();
+                respuestas_a_Signos();
+                cadenaPesos.push(pesoFuente);
+                console.log(cadenaRespuestas);
+                data.responseSign = signoRespuesta;
+                data.pesoComparacion = pesoFuente;
+                data.serieNumero = contadorSeries;
+            }
+        }
+        
+        // REPITE ENSAYO HASTA QUE SE DEBA INICIAR OTRA SERIE
+        var ensayo = {
+            timeline: [cruzFijacion, estimulos, pantallaRespuestas],
+            loop_function: function(data) {
+                
+                switch(direccionSerie){
+
+                    case('ascendente'):
+                        if ( respuestaIngresada == ubicacionesEstimulos['modelo'] || respuestaIngresada == 'igual') {
+                            console.log('Se tiene que correr otro ensayo');
+                            return true;
+                        } else if (respuestaIngresada == ubicacionesEstimulos['comparacion']) {
+                            listaErrores();
+
+                            console.log(errores);
+
+                            if(errores[0] == '+' && errores[1] == '+' && errores.length >= 2){
+                                respuestasPorSerie[contadorSeries] = cadenaRespuestas;
+                                console.log(respuestasPorSerie);
+                                // encontrar último con valor diferente de (+ o - según el caso), obtener todo el objeto, extraer pesoFuente, sumarle o restarle a ese pesoFuente 4 (para obtener el valor de la primera respuesta incorrecta), sumar esos dos valores y divirlo entre dos
+                                // let valorPreumbral = jsPsych.data.get().filter( {responseSign: '-'}, {responseSign: '='} ).last().select('pesoComparacion').values[0];
+                                // console.log(valorPreumbral);
+
+                                let valorPreumbral = cadenaPesos.at(-3);
+
+                                umbralSerie = valorPreumbral + 2;
+
+                                var datoUmbral = jsPsych.data.get().filter( {id: 'respuesta'} ).last()['trials'][0];
+                                datoUmbral.umbralSerie = umbralSerie;
+                                console.log(datoUmbral);
+
+                                console.log("EL UMBRAL DE ESTA SERIE FUE: " + umbralSerie);
+
+                                umbralesPorSerie[contadorSeries] = umbralSerie;
+
+
+                                // let ultimaRespuestaCorrecta = cadenaRespuestas.at(-3);
+                                // console.log(ultimaRespuestaCorrecta);
+
+                                // Tiene que reiniciarse para olvidar las respuestas de la serie pasada, pero no se guardan en ningún lado todavía
+                                cadenaRespuestas = [];
+                                contadorEnsayos = 0;
+                                cadenaPesos = [];
+                                invertirDireccionSerie();
+
+                                console.log(direccionSerie);
+                                return false;
+                            } else {
+                                return true;
+                            }    
+                        }
+                        break;
+
+                    case('descendente'):
+                        if ( respuestaIngresada == ubicacionesEstimulos['comparacion'] || respuestaIngresada == 'igual') {
+                            console.log('Se tiene que correr otro ensayo');
+                            return true;
+                        } else if (respuestaIngresada == ubicacionesEstimulos['modelo']) {
+                            listaErrores();
+
+                            console.log(errores);
+
+                            if(errores[0] == '-' && errores[1] == '-' && errores.length >= 2){
+                                respuestasPorSerie[contadorSeries] = cadenaRespuestas;
+                                console.log(respuestasPorSerie);
+
+                                // let valorPreumbral = jsPsych.data.get().filter( {responseSign: '+'}, {responseSign: '='} ).last().select('pesoComparacion').values[0];
+                                // console.log(valorPreumbral);
+
+
+                                let valorPreumbral = cadenaPesos.at(-3);
+                                let umbralSerie = valorPreumbral - 2;
+
+                                var datoUmbral = jsPsych.data.get().filter( {id: 'respuesta'} ).last()['trials'][0];
+                                datoUmbral.umbralSerie = umbralSerie;
+                                console.log(datoUmbral);
+
+                                console.log("EL UMBRAL DE ESTA SERIE FUE: " + umbralSerie);
+
+                                umbralesPorSerie[contadorSeries] = umbralSerie;
+
+                                // let ultimaRespuestaCorrecta = cadenaRespuestas.at(-3);
+                                // console.log(ultimaRespuestaCorrecta);
+                                
+                                // Tiene que reiniciarse para olvidar las respuestas de la serie pasada, pero no se guardan en ningún lado todavía
+                                cadenaRespuestas = [];
+                                contadorEnsayos = 0;
+                                cadenaPesos = [];
+                                invertirDireccionSerie();
+                                console.log(direccionSerie);
+                                return false;
+                            } else {
+                                return true;
+                            }
+                        }
+                }
+            },
+            on_finish: function(){
+                
+            }
+        }
+
+        //REPITE SERIES HASTA QUE TERMINE EL EXPERIMENTO
+        var serie = {
+            timeline: [inicioSerie, ensayo],
+            // timeline_variables: [
+            //     {valorInicial: }
+            // ]
+            loop_function: function(data){
+
+                var seriesRestantes = iniciosAscendentes.length + iniciosDescendentes.length;
+
+                if (iniciosAscendentes.length == 0 && iniciosDescendentes == 0){
+                    console.log('YA SE ACABÓ LA TORTURA!!!');
+                    // var variable = jsPsych.data.getLastTrialData();
+                    // variable.respuestas = respuestasPorSerie;
+                    // console.log(variable);
+                    
+                    var datosCompletos = jsPsych.data.get().filter( {id: 'respuesta'} ).last()['trials'][0];
+                    datosCompletos.promedioUmbral = jsPsych.data.get().select('umbralSerie').mean();
+                    datosCompletos.datosCompletos = respuestasPorSerie;
+                    console.log(datosCompletos);
+
+
+
+                    return false;
+                }
+                else {
+                    console.log('Aun restan ' + seriesRestantes + ' series');
+                    
+                    
+                    return true;
+                }
+
+            }
+            
+        }
+        timeline.push(serie);
+
+        var agradecimiento = {
+            //A este trial se le añadiría el objeto con las respuestas por serie
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: '<span style="font-size:40px;">GRACIAS POR SU PARTICIPACIÓN</span>',
+            choices: 'NO_KEYS',
+            on_start: function(data){
+                jsPsych.data.get().localSave('csv', 'data.csv');
+                console.log('PANTALLA DESPEDIDA');
+            }
+        }
+        timeline.push(agradecimiento);
+
+        jsPsych.run(timeline);
+    </script>
+</html>
